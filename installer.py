@@ -34,7 +34,7 @@ def validar_json(objeto: list, chaves: list, instancias: list):
             dicionarios_val += 1
 
 
-    if dicionarios_val < len(objeto) and dicionarios_val > 0:
+    if dicionarios_val < 1:
         return False
 
     return True

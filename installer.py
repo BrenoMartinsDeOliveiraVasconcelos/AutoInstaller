@@ -1,16 +1,16 @@
 import requests
 import json
 
-# Constantes para validação JSON
-CHAVES = ["url", "destino", "protocolo"]
-INSTANCIAS = [str, str, str]
-
 def validar_json(objeto: list, chaves: list, instancias: list):
     dicionarios_val = 0
     chaves_num = len(chaves)
 
     # Checar se é lista
     if not isinstance(objeto, list):
+        return False
+
+    # Já elimina caso esteja vazio
+    if len(objeto) < 1:
         return False
 
     # Verificação de validade
@@ -33,22 +33,17 @@ def validar_json(objeto: list, chaves: list, instancias: list):
         else:
             dicionarios_val += 1
 
-
-    if dicionarios_val < 1:
-        return False
-
     return True
 
 
-# Classe com protocolos para facilitar
-class Protocolos:
-    HTTP = "http"
-    HTTPS = "https"
+class JsonRules:
+    chaves = ["url", "destino"]
+    instancias = [str, str]
 
 # Classe de download
 class Download():
-    def __init__(self, url: str, destino: str, protocolo: str = "https", useragent: str="autoinstaller/1.0.0"):
-        self.url = protocolo + "://" + url
+    def __init__(self, url: str, destino: str, useragent: str="autoinstaller/1.0.0"):
+        self.url = url
         self.destino = destino
         self.timeout = 5
         self.useragent = useragent
@@ -79,16 +74,15 @@ class Downloader():
         for arquivo in self.json:
             url = arquivo["url"]
             destino = arquivo["destino"]
-            protocolo = arquivo["protocolo"]
             print(f"URL: {url} -> {destino}")
 
-            dwl = Download(url, destino, protocolo)
+            dwl = Download(url, destino)
             dwl.download()
 
 
 if __name__=='__main__':
     lista = json.load(open("list.json"))
-    v = validar_json(lista, CHAVES, INSTANCIAS)
+    v = validar_json(lista, JsonRules.chaves, JsonRules.instancias)
     t = Downloader(lista)
     t.download()
     print(lista, v)

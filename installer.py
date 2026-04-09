@@ -20,20 +20,13 @@ class Download():
     def download(self):
         script_headers = {"User-Agent": self.useragent}
 
+        print("Baixando...")
         req = requests.get(self.url, timeout=self.timeout, headers=script_headers)
         headers = req.headers
-
-        tp_arquivo = headers["Content-Type"].split("/")[1].split(";")[0] if "Content-Type" in headers.keys() else "none"
-        print(tp_arquivo)
-
-        print("Baixando...")
-
         # Baixar o arquivo
         if req.status_code == 200:
-            # Verificar o nome do arquivo em destino para por ou não a extensão
-            if not self.destino.endswith(tp_arquivo):
-                self.destino += f".{tp_arquivo}"
 
+            print(f"Salvando como {self.destino}! Pode demorar um pouco.")
             with open(self.destino, "wb") as arqv:
                 arqv.write(req.content)
         else:
@@ -50,8 +43,8 @@ class Downloader():
     
     def _json_valido(self) -> bool: # Validação .json
         self.json = json.load(open(self.caminho_lista))
-        chaves = ["url", "destino"]
-        instancias_chaves = [str, str]
+        chaves = ["url", "destino", "protocolo"]
+        instancias_chaves = [str, str, str]
         dicionarios_val = 0
         chaves_num = len(chaves)
 
@@ -86,5 +79,17 @@ class Downloader():
         return True
 
 
+    def download(self):
+        for arquivo in self.json:
+            url = arquivo["url"]
+            destino = arquivo["destino"]
+            protocolo = arquivo["protocolo"]
+            print(f"URL: {url} -> {destino}")
+
+            dwl = Download(url, destino, protocolo)
+            dwl.download()
+
+
 if __name__=='__main__':
     t = Downloader("list.json")
+    t.download()

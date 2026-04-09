@@ -1,5 +1,19 @@
 import requests
 import json
+import subprocess
+import os
+import sys 
+import time
+
+
+def checar_conexao(ping: str):
+    cmd = ["ping", ping, "-c", "1"]
+    if os.name == "nt":
+        cmd = ["ping", ping]
+
+    st = subprocess.run(cmd)
+    return st.returncode
+
 
 def validar_json(objeto: list, chaves: list, instancias: list):
     dicionarios_val = 0
@@ -37,15 +51,15 @@ def validar_json(objeto: list, chaves: list, instancias: list):
 
 
 class JsonRules:
-    chaves = ["url", "destino"]
-    instancias = [str, str]
+    chaves = ["url", "destino", "argumentos"]
+    instancias = [str, str, list]
 
 # Classe de download
 class Download():
-    def __init__(self, url: str, destino: str, useragent: str="autoinstaller/1.0.0"):
+    def __init__(self, url: str, destino: str, useragent: str="autoinstaller/1.0.0", timeout: float=5.0):
         self.url = url
         self.destino = destino
-        self.timeout = 5
+        self.timeout = timeout
         self.useragent = useragent
 
     
@@ -58,8 +72,6 @@ class Download():
         headers = req.headers
         # Baixar o arquivo
         if req.status_code == 200:
-
-            print(f"Salvando como {self.destino}! Pode demorar um pouco.")
             with open(self.destino, "wb") as arqv:
                 arqv.write(req.content)
         else:
@@ -74,15 +86,91 @@ class Downloader():
         for arquivo in self.json:
             url = arquivo["url"]
             destino = arquivo["destino"]
-            print(f"URL: {url} -> {destino}")
 
             dwl = Download(url, destino)
             dwl.download()
 
 
-if __name__=='__main__':
-    lista = json.load(open("list.json"))
-    v = validar_json(lista, JsonRules.chaves, JsonRules.instancias)
-    t = Downloader(lista)
-    t.download()
-    print(lista, v)
+# Classe do instalador
+class Installer():
+    def __init__(self, executavel: str, argumentos: list) -> int:
+        self.executavel = executavel
+        self.argumentos = argumentos
+
+    def install(self):
+        comando = [self.executavel]
+        comando.extend(self.argumentos)
+        resultado = subprocess.run(comando)
+
+        return resultado.returncode
+
+def main():
+    print("="*10)
+    print("AutoInstaller v1.0.0 by Breno Martins")
+    print("="*10)
+
+    # Verificar argumento da linha de comando
+    if len(sys.argv) != 2:
+        print("Uso: python script.py <arquivo.json>")
+        sys.exit(1)
+
+    arquivo_json = sys.argv[1]
+
+    # Verificar conexão com a internet
+    print("Verificando conexão com a internet...")
+    while checar_conexao("8.8.8.8") != 0:
+        print("Sem conexão com a internet. Verifique e pressione Enter para tentar novamente.")
+        input()
+    print("Conexão estabelecida.\n")
+
+    # Carregar e validar o arquivo JSON
+    try:
+        with open(arquivo_json, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+    except FileNotFoundError:
+        print(f"Erro: Arquivo '{arquivo_json}' não encontrado.")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"Erro: Arquivo JSON inválido. {e}")
+        sys.exit(1)
+
+    if not validar_json(dados, JsonRules.chaves, JsonRules.instancias):
+        print("Erro: Estrutura do JSON inválida. Esperado lista de dicionários com chaves:", JsonRules.chaves)
+        sys.exit(1)
+
+    # Iterar e processar cada entrada
+    for idx, item in enumerate(dados, start=1):
+        url = item["url"]
+        destino = item["destino"]
+        argumentos = item["argumentos"]
+
+        print(f"\n[{idx}/{len(dados)}] Processando: {destino}")
+
+        # Download
+        try:
+            downloader = Download(url, destino)
+            downloader.download()
+            print(f"Download concluído: {destino}")
+        except Exception as e:
+            print(f"Falha no download de {url}: {e}")
+            continue
+
+        # Instalação
+        try:
+            print(f"Iniciado instalação de {destino}.")
+            instalador = Installer(destino, argumentos)
+            status = instalador.install()
+
+            if status == 0:
+                print(f"Instalação concluída: {destino}")
+            else:
+                print(f"Instalação falhou com código {status}.")
+        except Exception as e:
+            print(f"Falha na instalação de {destino}: {e}")
+            continue
+
+    print("\nProcesso finalizado.")
+
+
+if __name__ == "__main__":
+    main()

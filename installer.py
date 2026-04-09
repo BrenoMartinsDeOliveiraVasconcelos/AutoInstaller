@@ -1,6 +1,44 @@
 import requests
 import json
 
+# Constantes para validação JSON
+CHAVES = ["url", "destino", "protocolo"]
+INSTANCIAS = [str, str, str]
+
+def validar_json(objeto: list, chaves: list, instancias: list):
+    dicionarios_val = 0
+    chaves_num = len(chaves)
+
+    # Checar se é lista
+    if not isinstance(objeto, list):
+        return False
+
+    # Verificação de validade
+    for item in objeto:
+        # Ja excclui se um item já não é dicionário
+        if not isinstance(item, dict):
+            return False
+        
+        chaves_vaalidas = 0
+        indice = 0
+        for chave in chaves:
+            if chave in item.keys():
+                if isinstance(item[chave], instancias[indice]):
+                    chaves_vaalidas += 1
+        
+            indice += 1
+
+        if chaves_vaalidas != chaves_num:
+            return False
+        else:
+            dicionarios_val += 1
+
+
+    if dicionarios_val < len(objeto) and dicionarios_val > 0:
+        return False
+
+    return True
+
 
 # Classe com protocolos para facilitar
 class Protocolos:
@@ -34,50 +72,8 @@ class Download():
 
 
 class Downloader():
-    def __init__(self, caminho_lista: str):
-        self.caminho_lista = caminho_lista
-        
-        if not self._json_valido():
-            raise TypeError("Formato invalido de JSON")
-
-    
-    def _json_valido(self) -> bool: # Validação .json
-        self.json = json.load(open(self.caminho_lista))
-        chaves = ["url", "destino", "protocolo"]
-        instancias_chaves = [str, str, str]
-        dicionarios_val = 0
-        chaves_num = len(chaves)
-
-        # Checar se é lista
-        if not isinstance(self.json, list):
-            return False
-
-        # Verificação de validade
-        for item in self.json:
-            # Ja excclui se um item já não é dicionário
-            if not isinstance(item, dict):
-                return False
-            
-            chaves_vaalidas = 0
-            indice = 0
-            for chave in chaves:
-                if chave in item.keys():
-                    if isinstance(item[chave], instancias_chaves[indice]):
-                        chaves_vaalidas += 1
-            
-                indice += 1
-
-            if chaves_vaalidas != chaves_num:
-                return False
-            else:
-                dicionarios_val += 1
-
-
-        if dicionarios_val < len(self.json) and dicionarios_val > 0:
-            return False
-
-        return True
-
+    def __init__(self, lista: list):
+        self.json = lista
 
     def download(self):
         for arquivo in self.json:
@@ -91,5 +87,8 @@ class Downloader():
 
 
 if __name__=='__main__':
-    t = Downloader("list.json")
+    lista = json.load(open("list.json"))
+    v = validar_json(lista, CHAVES, INSTANCIAS)
+    t = Downloader(lista)
     t.download()
+    print(lista, v)

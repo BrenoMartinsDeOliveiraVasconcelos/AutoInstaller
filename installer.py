@@ -179,7 +179,7 @@ def main():
                     download = Download(url, destino, timeout=10.0)
                     download.download()
                 except requests.exceptions.ConnectionError:
-                    ouput(f"Erro ao baixar arquivo. Ignorando.", 2)
+                    output(f"Erro ao baixar arquivo. Ignorando.", 2)
                     pause()
                     continue
                 except Exception as e:

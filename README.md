@@ -37,6 +37,11 @@ Exemplo:
 ]
 ```
 
+
+## Instalação de dependências
+
+No repositório, existe um script em .sh e .bat para instalar em seus respectivos sistemas. Rode-os caso queira instalar automaticamente, se não as dependências necessárias estão em `requirements.txt`. 
+
 ## Nota de segurança
 
 O script NÃO evita a instalação de malwares e nem foi feito paa isso, portando, o ussuário ainda deve tomar cuidado sobre os arquivos que baixa a instala pela internet.

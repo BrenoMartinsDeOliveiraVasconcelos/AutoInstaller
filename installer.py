@@ -137,7 +137,7 @@ def main():
 
     cmd = argumentos.cmd
     dwl = argumentos.dwl
-    
+
     cmd = cmd.removesuffix("/")
     dwl = dwl.removesuffix("/")
     lista_args = [cmd, dwl]
@@ -241,6 +241,8 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+        output("Processo finalizado!", 0)
+        pause()
     except json.JSONDecodeError:
         output("Erro ao ler arquivo JSON.", 3)
     except Exception as e:

@@ -4,6 +4,31 @@ import subprocess
 import os
 import sys 
 import time
+import argparse
+import traceback
+
+
+def welcome():
+    texto = "AutoInstaller v1.0.0 - By Breno Martins"
+    tamanho = len(texto)
+    print("="*tamanho)
+    print(texto)
+    print("="*tamanho)
+
+
+def output(texto: str, severidade: int, sufixo: str = ""):
+    prefixos = ["INFO", "AVISO", "ERRO", "FATAL", "INPUT"]
+
+    print(f"[{prefixos[severidade]}] {texto}{sufixo}")
+
+
+def ask(texto: str, inp_str: str) -> str:
+    output(texto, 4)
+    return input(inp_str)
+
+
+def pause():
+    return ask("Pressione enter para continuar.", "")
 
 
 def checar_conexao(ping: str):
@@ -54,6 +79,11 @@ class JsonRules:
     chaves = ["url", "destino", "argumentos"]
     instancias = [str, str, list]
 
+
+class JsonRulesCMDs:
+    chaves = ["comando", "argumentos"]
+    instancias = [str, list]
+
 # Classe de download
 class Download():
     def __init__(self, url: str, destino: str, useragent: str="autoinstaller/1.0.0", timeout: float=5.0):
@@ -67,7 +97,6 @@ class Download():
     def download(self):
         script_headers = {"User-Agent": self.useragent}
 
-        print("Baixando...")
         req = requests.get(self.url, timeout=self.timeout, headers=script_headers)
         headers = req.headers
         # Baixar o arquivo
@@ -78,99 +107,141 @@ class Download():
             raise requests.HTTPError(str(req.content))
 
 
-class Downloader():
-    def __init__(self, lista: list):
-        self.json = lista
-
-    def download(self):
-        for arquivo in self.json:
-            url = arquivo["url"]
-            destino = arquivo["destino"]
-
-            dwl = Download(url, destino)
-            dwl.download()
-
-
 # Classe do instalador
 class Installer():
     def __init__(self, executavel: str, argumentos: list) -> int:
         self.executavel = executavel
         self.argumentos = argumentos
 
-    def install(self):
+    def install(self) -> int:
         comando = [self.executavel]
         comando.extend(self.argumentos)
-        resultado = subprocess.run(comando)
+        try:
+            resultado = subprocess.run(comando)
+        except FileNotFoundError:
+            if os.name != "nt":
+                comando[0] = "./" + comando[0]
+                resultado = subprocess.run(comando)
 
         return resultado.returncode
 
 def main():
-    print("="*10)
-    print("AutoInstaller v1.0.0 by Breno Martins")
-    print("="*10)
+    welcome()
+    
+    # Criar argumentos para json
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dwl', type=str, default="")
+    parser.add_argument('--cmd', type=str, default="")
 
-    # Verificar argumento da linha de comando
-    if len(sys.argv) != 2:
-        print("Uso: python script.py <arquivo.json>")
+    argumentos = parser.parse_args() # Argumentos passados
+
+    cmd = argumentos.cmd
+    dwl = argumentos.dwl
+    
+    cmd = cmd.removesuffix("/")
+    dwl = dwl.removesuffix("/")
+    lista_args = [cmd, dwl]
+    vazio = [not x for x in lista_args]
+    existentes = [os.path.exists(x) for x in lista_args]
+
+    if False not in vazio:
+        output("Pelo menos 1 argumento deve ser passado.", 3)
         sys.exit(1)
 
-    arquivo_json = sys.argv[1]
+    
+    if True not in existentes:
+        output("Por favor, passe arquivos que existem como argumentos.", 3)
+        sys.exit(1)
 
-    # Verificar conexão com a internet
-    print("Verificando conexão com a internet...")
+
+    output("Checando conexão com a internet.", 0)
+    # Checar conexão com a internet antes de começar
     while checar_conexao("8.8.8.8") != 0:
-        print("Sem conexão com a internet. Verifique e pressione Enter para tentar novamente.")
-        input()
-    print("Conexão estabelecida.\n")
+        output("Verifique a conexão com a internet antes de continuar.", 3)
+        pause()
+    output("Conexão estabelecida", 0)
 
-    # Carregar e validar o arquivo JSON
-    try:
-        with open(arquivo_json, "r", encoding="utf-8") as f:
-            dados = json.load(f)
-    except FileNotFoundError:
-        print(f"Erro: Arquivo '{arquivo_json}' não encontrado.")
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"Erro: Arquivo JSON inválido. {e}")
-        sys.exit(1)
 
-    if not validar_json(dados, JsonRules.chaves, JsonRules.instancias):
-        print("Erro: Estrutura do JSON inválida. Esperado lista de dicionários com chaves:", JsonRules.chaves)
-        sys.exit(1)
+    # Por fim, começar o processo
+    if dwl != "":
+        objeto = json.load(open(dwl))
+        json_valido = validar_json(objeto, JsonRules.chaves, JsonRules.instancias)
+        
+        if json_valido:
+            for item in objeto:
+                url = item["url"]
+                destino = item["destino"]
+                argumento_exec = item["argumentos"]
 
-    # Iterar e processar cada entrada
-    for idx, item in enumerate(dados, start=1):
-        url = item["url"]
-        destino = item["destino"]
-        argumentos = item["argumentos"]
+                # Baixar
+                try:
+                    output(f"Baixando {destino}.", 0)
+                    download = Download(url, destino, timeout=10.0)
+                    download.download()
+                except requests.exceptions.ConnectionError:
+                    ouput(f"Erro ao baixar arquivo. Ignorando.", 2)
+                    pause()
+                    continue
+                except Exception as e:
+                    erro = traceback.format_exc()
+                    output(erro, 2)
+                    continue
 
-        print(f"\n[{idx}/{len(dados)}] Processando: {destino}")
 
-        # Download
-        try:
-            downloader = Download(url, destino)
-            downloader.download()
-            print(f"Download concluído: {destino}")
-        except Exception as e:
-            print(f"Falha no download de {url}: {e}")
-            continue
+                # Instalar
+                output(f"Instalando {destino}...", 0)
+                try:
+                    installer = Installer(destino, argumento_exec)
+                    resultado = installer.install()
 
-        # Instalação
-        try:
-            print(f"Iniciado instalação de {destino}.")
-            instalador = Installer(destino, argumentos)
-            status = instalador.install()
+                    if resultado != 0:
+                        output(f"Erro ao instalar {destino}: {resultado}", 2)
+                    else:
+                        output(f"{destino} foi instalado com sucesso!", 0)
+                except PermissionError:
+                    output(f"O usuário atual não tem permissão para executar {destino}.", 2)
+                except FileNotFoundError:
+                    output(f"{destino} não pôde ser encontrado.", 2)
+                except Exception as e:
+                    output(traceback.format_exc(), 2)
+        else:
+            output("O arquivo JSON em --dwl é inválido.", 3)
 
-            if status == 0:
-                print(f"Instalação concluída: {destino}")
-            else:
-                print(f"Instalação falhou com código {status}.")
-        except Exception as e:
-            print(f"Falha na instalação de {destino}: {e}")
-            continue
+    # Caso o argumento de instalar por comando esteja presente
+    if cmd != "":
+        objeto = json.load(open(cmd))
+        json_valido = validar_json(objeto, JsonRulesCMDs.chaves, JsonRulesCMDs.instancias)
 
-    print("\nProcesso finalizado.")
+        if json_valido:
+            for item in objeto:
+                comando = item["comando"]
+                argumento_exec = item["argumentos"]
+
+                try:
+                    output(f"Executando {comando} {' '.join(argumento_exec)}...", 0)
+                    instalador = Installer(comando, argumento_exec)
+                    resultado = instalador.install()
+
+                    if resultado != 0:
+                        output(f"Erro ao executar o comando: {resultado}", 2)
+                    else:
+                        output('Comando executaado com sucesso.', 0)
+
+                except PermissionError:
+                    output("O usuário não tem permissão paa executar esse comando.", 2)
+                    continue
+                except FileNotFoundError:
+                    output("O comando não pode ser encontrado.", 2)
+                except Exception as e:
+                    output(traceback.format_exc(), 2)
+        else:
+            output("O arquivo JSON em --cmd é inválido.", 3)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except json.JSONDecodeError:
+        output("Erro ao ler arquivo JSON.", 3)
+    except Exception as e:
+        output(traceback.format_exc(), 3)

@@ -3,7 +3,6 @@ import json
 import subprocess
 import os
 import sys 
-import time
 import argparse
 import traceback
 
@@ -75,9 +74,9 @@ def validar_json(objeto: list, chaves: list, instancias: list):
     return True
 
 
-class JsonRules:
-    chaves = ["url", "destino", "argumentos"]
-    instancias = [str, str, list]
+class JsonRulesDWLs:
+    chaves = ["url", "destino", "argumentos", "sha256"]
+    instancias = [str, str, list, str]
 
 
 class JsonRulesCMDs:
@@ -165,13 +164,14 @@ def main():
     # Por fim, começar o processo
     if dwl != "":
         objeto = json.load(open(dwl))
-        json_valido = validar_json(objeto, JsonRules.chaves, JsonRules.instancias)
+        json_valido = validar_json(objeto, JsonRulesDWLs.chaves, JsonRulesDWLs.instancias)
         
         if json_valido:
             for item in objeto:
                 url = item["url"]
                 destino = item["destino"]
                 argumento_exec = item["argumentos"]
+                sha256 = item["sha256"]
 
                 # Baixar
                 try:
@@ -186,7 +186,6 @@ def main():
                     erro = traceback.format_exc()
                     output(erro, 2)
                     continue
-
 
                 # Instalar
                 output(f"Instalando {destino}...", 0)

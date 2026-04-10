@@ -75,8 +75,8 @@ def validar_json(objeto: list, chaves: list, instancias: list):
 
 
 class JsonRulesDWLs:
-    chaves = ["url", "destino", "argumentos", "sha256"]
-    instancias = [str, str, list, str]
+    chaves = ["url", "destino", "argumentos"]
+    instancias = [str, str, list]
 
 
 class JsonRulesCMDs:
@@ -171,7 +171,6 @@ def main():
                 url = item["url"]
                 destino = item["destino"]
                 argumento_exec = item["argumentos"]
-                sha256 = item["sha256"]
 
                 # Baixar
                 try:
